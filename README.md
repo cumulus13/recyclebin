@@ -26,11 +26,14 @@ optional arguments:
   -ng, --no-gui         Use command line tool
   -y, --quiet           No asking prompt/interactive
   -l LOGFILE, --logfile LOGFILE
-                        If you want save logfile to different location, default is "C:\PROJECTS\recyclebin\recyclebin.log"
+                        If you want save logfile to different location, default is "recyclebin.log"
   -m MOVE_ALL, --move-all MOVE_ALL
                         run action "move" with no interactive/prompt/quiet with progress info
 
 ```
+
+## debugging
+require install pydebugger (`pip install pydebugger`) and set environment `DEBUG=1` or `DEBUG=True`
 
 ## author
 --------------
