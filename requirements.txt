@@ -1,0 +1,5 @@
+winshell
+pywin32
+make_colors
+argparse
+progressbar2
