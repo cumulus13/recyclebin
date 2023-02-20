@@ -286,25 +286,46 @@ class Recyclebin(object):
         parser.add_argument('-y', '--quiet', help = 'No asking prompt/interactive', action = 'store_true')
         parser.add_argument('-l', '--logfile', help = 'If you want save logfile to different location, default is "{}"'.format(os.path.abspath(self.LOG_FILE)), action = 'store')
         parser.add_argument('-m', '--move-all', help = 'run action "move" with no interactive/prompt/quiet with progress info')
+        parser.add_argument('-c', '--clean', help = 'CleanUp recyclebin', action = 'store_true')
         if len(sys.argv) == 1:
             parser.print_help()
         else:
-            args = parser.parse_args()
-            gui = True
-            interactive = True
-            show_progress = True
-            if args.no_gui: gui = False
-            if args.action == 'c':
-                action = 'copy'
-            elif args.action == 'm':
-                action = 'move'
+            if sys.argv[1] == '-c' or sys.argv[1] == '--clean':
+                print(make_colors("cleanup recyclebin ...", 'ly'))
+                if len(list(winshell.ShellRecycleBin().items())) > 0:
+                    winshell.ShellRecycleBin().empty()
+                    print(make_colors("recyclebin now empty.", 'b', 'y'))
+                else:
+                    print(make_colors("recyclebin is empty.", 'lg'))
+                print(make_colors("done.", 'lc'))
+                os.kill(os.getpid(), signal.SIGTERM)
             else:
-                action = args.action
-            if args.quiet:
-                gui = False
-                interactive = False
-                show_progress = False
-            self.manage(args.DIR, gui, args.overwrite, interactive, show_progress, args.logfile, args.move_all, action)
+                args = parser.parse_args()
+                if args.clean:
+                    print(make_colors("cleanup recyclebin ...", 'ly'))
+                    if len(list(winshell.ShellRecycleBin().items())) > 0:
+                        winshell.ShellRecycleBin().empty()
+                        print(make_colors("recyclebin now empty.", 'b', 'y'))
+                    else:
+                        print(make_colors("recyclebin is empty.", 'lg'))
+                    print(make_colors("done.", 'lc'))                    
+                    os.kill(os.getpid(), signal.SIGTERM)
+                    
+                gui = True
+                interactive = True
+                show_progress = True
+                if args.no_gui: gui = False
+                if args.action == 'c':
+                    action = 'copy'
+                elif args.action == 'm':
+                    action = 'move'
+                else:
+                    action = args.action
+                if args.quiet:
+                    gui = False
+                    interactive = False
+                    show_progress = False
+                self.manage(args.DIR, gui, args.overwrite, interactive, show_progress, args.logfile, args.move_all, action)
             
 def usage():
     return Recyclebin.usage()
