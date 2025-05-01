@@ -4,8 +4,18 @@ import argparse
 from rich.console import Console
 from rich_argparse import RichHelpFormatter, _lazy_rich as rr
 from typing import ClassVar
+from rich.align import Align
 
 console = Console()
+
+console.print(
+    Align("""[bold #00FFFF] _                                        _           _ _____ 
+| |__  _   _    ___ _   _ _ __ ___  _   _| |_   _ ___/ |___ / 
+| '_ \| | | |  / __| | | | '_ ` _ \| | | | | | | / __| | |_ \ 
+| |_) | |_| | | (__| |_| | | | | | | |_| | | |_| \__ \ |___) |
+|_.__/ \__, |  \___|\__,_|_| |_| |_|\__,_|_|\__,_|___/_|____/ 
+       |___/                                                  [/]\n""")
+)
 
 class CustomRichHelpFormatter(RichHelpFormatter):
     """A custom RichHelpFormatter with modified styles."""
@@ -31,7 +41,7 @@ except ImportError:
 def list_recycle_bin():
     items = list(winshell.ShellRecycleBin().items())
     if not items:
-        console.print("[black on #FFFF00]Recycle Bin is empty.[/]")
+        console.print("\n[#FFFF00 on #FF55FF]Recycle Bin is empty.[/]")
         return []
     console.print("[black on #00FFFF]Recycle Bin Contents:[/]")
     for idx, item in enumerate(items, 1):
