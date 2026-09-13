@@ -1,35 +1,124 @@
+#!/usr/bin/env python3
+
+# File: recyclebin.py
+# Author: Hadi Cahyadi <cumulus13@gmail.com>
+# Date: 2026-01-09
+# Description: A simple command-line tool to manage the Windows Recycle Bin (Windows) using Python.  
+# License: MIT
+
 from __future__ import print_function
+
+import os
+from config_get import ConfigGet  # type: ignore
+CONFIGFILE = ConfigGet(config_dir = 'rcb', create=True)
+if str(os.getenv('RCB_DEBUG', '0')).lower() in ('1', 'true', 'ok', 'on', 'yes'): print(f"CONFIGFILE: {CONFIGFILE}")
+
+from envdot import load_env  # type: ignore
+CONFIG = load_env(CONFIGFILE)
+
+
+HAS_GNTPLIB = False
+HAS_RICH = False
+Align = None  # type: ignore
+
 import sys
 import argparse
-from rich.console import Console
-from rich_argparse import RichHelpFormatter, _lazy_rich as rr
+try:
+    from pathlib3 import Path  # type: ignore
+except:
+    from pathlib import Path
+
+try:
+    from rich.console import Console
+    from rich.align import Align
+    HAS_RICH = True
+except:
+    from make_colors import Console  # type: ignore
+
+try:
+    from rchf import CustomRichHelpFormatter  # type: ignore
+except:
+    from rich_argparse import RichHelpFormatter, _lazy_rich as rr
+    class CustomRichHelpFormatter(RichHelpFormatter):
+        """A custom RichHelpFormatter with modified styles."""
+
+        styles: ClassVar[dict[str, rr.StyleType]] = {  # type: ignore
+            "argparse.args": "bold #FFFF00",  # Changed from cyan
+            "argparse.groups": "#AA55FF",   # Changed from dark_orange
+            "argparse.help": "bold #00FFFF",    # Changed from default
+            "argparse.metavar": "bold #FF00FF", # Changed from dark_cyan
+            "argparse.syntax": "underline", # Changed from bold
+            "argparse.text": "white",   # Changed from default
+            "argparse.prog": "bold #00AAFF italic",     # Changed from grey50
+            "argparse.default": "bold", # Changed from italic
+        }
+
 from typing import ClassVar
-from rich.align import Align
+
+try:
+    from gntplib import Publisher, Resource  # type: ignore
+    HAS_GNTPLIB = True
+except:
+    pass
 
 console = Console()
 
-console.print(
-    Align("""[bold #00FFFF] _                                        _           _ _____ 
-| |__  _   _    ___ _   _ _ __ ___  _   _| |_   _ ___/ |___ / 
-| '_ \| | | |  / __| | | | '_ ` _ \| | | | | | | / __| | |_ \ 
-| |_) | |_| | | (__| |_| | | | | | | |_| | | |_| \__ \ |___) |
-|_.__/ \__, |  \___|\__,_|_| |_| |_|\__,_|_|\__,_|___/_|____/ 
-       |___/                                                  [/]\n""")
-)
+if Align:
+    console.print(
+        Align("""[bold #00FFFF] 
+     _                                        _           _ _____ 
+    | |__  _   _    ___ _   _ _ __ ___  _   _| |_   _ ___/ |___ / 
+    | '_ \| | | |  / __| | | | '_ ` _ \| | | | | | | / __| | |_ \ 
+    | |_) | |_| | | (__| |_| | | | | | | |_| | | |_| \__ \ |___) |
+    |_.__/ \__, |  \___|\__,_|_| |_| |_|\__,_|_|\__,_|___/_|____/ 
+           |___/                                                  [/]\n""")
+    )
+else:
+    console.print(
+       """[bold #00FFFF] 
+     _                                        _           _ _____ 
+    | |__  _   _    ___ _   _ _ __ ___  _   _| |_   _ ___/ |___ / 
+    | '_ \| | | |  / __| | | | '_ ` _ \| | | | | | | / __| | |_ \ 
+    | |_) | |_| | | (__| |_| | | | | | | |_| | | |_| \__ \ |___) |
+    |_.__/ \__, |  \___|\__,_|_| |_| |_|\__,_|_|\__,_|___/_|____/ 
+           |___/                                                  [/]\n"""
+    )
 
-class CustomRichHelpFormatter(RichHelpFormatter):
-    """A custom RichHelpFormatter with modified styles."""
 
-    styles: ClassVar[dict[str, rr.StyleType]] = {
-        "argparse.args": "bold #FFFF00",  # Changed from cyan
-        "argparse.groups": "#AA55FF",   # Changed from dark_orange
-        "argparse.help": "bold #00FFFF",    # Changed from default
-        "argparse.metavar": "bold #FF00FF", # Changed from dark_cyan
-        "argparse.syntax": "underline", # Changed from bold
-        "argparse.text": "white",   # Changed from default
-        "argparse.prog": "bold #00AAFF italic",     # Changed from grey50
-        "argparse.default": "bold", # Changed from italic
-    }
+def notify(title, message, name = 'cleanup', icon = None, host = None):
+    if not HAS_GNTPLIB:
+        console.print("WARNING: Install gntplib first !")
+    icon = Path(__file__).parent / 'recyclebin.png'
+    if icon.is_file(): icon = Resource(icon)  # type: ignore
+    notifications = [name, "error"]
+
+    def publish(host='127.0.0.1', port=23053):
+        p = Publisher(  # type: ignore
+                "RecycleBin",
+                notifications,
+                host=host,
+                port=port
+            )
+        p.register()
+        p.publish(name, title, message, icon);return True if name in notifications else print(f'{name} not in {notifications}');return False
+        
+    if host and isinstance(host, (list, tuple)):
+        for i in host:
+            if ":" in host:
+                _host, _port = host.split(":")
+            else:
+                _host = i
+                _port = 23053
+
+            publish(_host, int(_port))
+    elif host and isinstance(host, (str, bytes)):
+        host = host.decode() if hasattr(host, 'decode') else host
+        publish(host)
+    else:
+        print("Not send notification to growl !")
+
+
+    return
     
 try:
     import winshell
@@ -41,21 +130,57 @@ except ImportError:
 def list_recycle_bin():
     items = list(winshell.ShellRecycleBin().items())
     if not items:
-        console.print("\n[#FFFF00 on #FF55FF]Recycle Bin is empty.[/]")
+        console.print(":recycling_symbol: :cross_mark: [bold #FFFF00]Recycle Bin[/] [bold #FF00AA]is empty[/]")
         return []
     console.print("[black on #00FFFF]Recycle Bin Contents:[/]")
     for idx, item in enumerate(items, 1):
-        dt = item.recycle_date().strftime("%Y/%m/%d %H:%M:%S.%f")
-        console.print(f"[bold #FF55FF]{idx}.[/] \[[bold #FFFF00]{dt}[/]] [bold #00FFFF]{item.name()}[/] - [bold #AAAAFF]{item.filename()}[/]")
+        dt = item.recycle_date().strftime("%Y/%m/%d %H:%M:%S.%f")  # type: ignore
+        console.print(f"[bold #FF55FF]{idx}.[/] \[[bold #FFFF00]{dt}[/]] [bold #00FFFF]{item.name()}[/] - [bold #AAAAFF]{item.filename()}[/]")  # type: ignore
     return items
+
+# def restore_items(items, indices):
+#     for i in indices:
+#         try:
+#             items[i].restore()
+#             console.print(f"[black on #FFFF00]Restored:[/] [white on #0000FF]{items[i].name()}[/]")
+#         except Exception as e:
+#             console.print(f"[white on red]Failed to restore[/] [white on #00007F]{items[i].name()}[/]: [black on #00FFFF]{e}[/]")
+
+def restore_items_com(items, indices):
+    import win32com.client
+    shell = win32com.client.Dispatch("Shell.Application")
+    recycle_bin = shell.NameSpace(10)  # 10 is CSIDL_BITBUCKET / Recycle Bin
+    
+    for i in indices:
+        try:
+            target_name = items[i].name()
+            found = False
+            for item in recycle_bin.Items():
+                if item.Name == target_name:
+                    # Execute the 'Restore' context menu verb (e.g. 'undelete' / 'restore')
+                    for verb in item.Verbs():
+                        if 'restore' in verb.Name.lower() or 'undelete' in verb.Name.lower() or 'estore' in verb.Name.lower():
+                            verb.DoIt()
+                            found = True
+                            break
+                    if found:
+                        break
+            if found:
+                console.print(f"[black on #FFFF00]Restored:[/] [white on #0000FF]{target_name}[/]")
+            else:
+                console.print(f"[white on red]Failed to restore[/] [white on #00007F]{target_name}[/]: Restore verb not found")
+        except Exception as e:
+            console.print(f"[white on red]Failed to restore[/] [white on #00007F]{items[i].name()}[/]: [black on #00FFFF]{e}[/]")
 
 def restore_items(items, indices):
     for i in indices:
         try:
-            items[i].restore()
+            # Pass the item's original path to winshell.undelete()
+            winshell.undelete(items[i].original_filename())
             console.print(f"[black on #FFFF00]Restored:[/] [white on #0000FF]{items[i].name()}[/]")
         except Exception as e:
-            console.print(f"[white on red]Failed to restore[/] [white on #00007F]{items[i].name()}[/]: [black on #00FFFF]{e}[/]")
+            # console.print(f"[white on red]Failed to restore[/] [white on #00007F]{items[i].name()}[/]: [black on #00FFFF]{e}[/]")
+            return restore_items_com(items, indices)
 
 def delete_items(items, indices):
     for i in indices:
@@ -96,15 +221,15 @@ def interactive_recycle_bin():
         return
     while True:
         console.print(
-            "[00FFFF]please select number[/], "
-            "[bold #AA55FF]\[n]r = to restore number[/], "
-            "[bold #5555FF]\[n1-nX]r to restore number n1 to nX[/], "
+            "[#00FFFF]please select number[/], "
+            "[bold #AA55FF]\\[n]r = to restore number[/], "
+            "[bold #5555FF]\\[n1-nX]r to restore number n1 to nX[/], "
             "[bold #5500FF]n1,n2,n3..r = to restore number n1,n2,n3,...[/], "
-            "[bold #FF00FF]\[n]d = to -delete number[/], "
-            "[bold #FF55FF]\[n1-nX]d to delete number n1 to nX[/], "
+            "[bold #FF00FF]\\[n]d = to -delete number[/], "
+            "[bold #FF55FF]\\[n1-nX]d to delete number n1 to nX[/], "
             "[bold #FF5500]n1,n2,n3..d = to delete number n1,n2,n3,...[/], "
-            "[bold #FFFF00]\[c] = clean/clear recycle bin[/], "
-            "[bold #FF0000]\[q]uit/e[x]it = exit/quit[/] "
+            "[bold #FFFF00]\\[c] = clean/clear recycle bin[/], "
+            "[bold #FF0000]\\[q]uit/e[x]it = exit/quit[/] "
             "[bold #00FFFF]or just type any to search/filter what you want:[/] ", end=''
         )
         cmd = input().strip().lower()
@@ -157,8 +282,14 @@ def usage():
     parser.add_argument('-i', '--interactive', help='Interactive recycle bin manager', action='store_true')
     if len(sys.argv) == 1:
         parser.print_help()
-        # winshell.ShellRecycleBin().empty()
-        list_recycle_bin()
+        try:
+            winshell.ShellRecycleBin().empty()
+        except Exception as e:
+            console.print("\n:cross_mark: Failed to cleaning recycle bin !")
+        try:
+            list_recycle_bin()
+        except Exception as e:
+            console.print(":recycling_symbol: :white_check_mark: [bold #FFFF00]Recycle Bin[/] [bold #FF00AA]is empty[/]")
     else:
         args = parser.parse_args()
         if args.list:
